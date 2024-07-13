@@ -8,6 +8,8 @@ import torch
 from pysgg.utils.model_serialization import load_state_dict
 from pysgg.utils.registry import Registry
 
+import sys
+
 
 def _rename_basic_resnet_weights(layer_keys):
     layer_keys = [k.replace("_", ".") for k in layer_keys]
@@ -132,7 +134,8 @@ def _rename_weights_for_resnet(weights, stage_names):
 
 def _load_c2_pickled_weights(file_path):
     with open(file_path, "rb") as f:
-        if torch._six.PY3:
+        # if torch._six.PY3:
+        if sys.version_info[0] == 3:
             data = pickle.load(f, encoding="latin1")
         else:
             data = pickle.load(f)

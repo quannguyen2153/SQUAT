@@ -61,6 +61,10 @@ class VGDataset(torch.utils.data.Dataset):
             num_val_im: Number of images in the validation set (must be less than num_im
                unless num_im is -1.)
         """
+        # for subset
+        self.filter_empty_rels = filter_empty_rels
+        self.num_val_im = num_val_im
+
         # for debug
         if cfg.DEBUG:
             num_im = 6000
@@ -354,6 +358,40 @@ class VGDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.idx_list)
+    
+    def subset(self, indices):
+        subset_filenames = [self.filenames[i] for i in indices]
+        subset_gt_boxes = [self.gt_boxes[i] for i in indices]
+        subset_gt_classes = [self.gt_classes[i] for i in indices]
+        subset_gt_attributes = [self.gt_attributes[i] for i in indices]
+        subset_relationships = [self.relationships[i] for i in indices]
+        subset_img_info = [self.img_info[i] for i in indices]
+
+        subset_instance = VGDataset(
+            self.split,
+            self.img_dir,
+            self.roidb_file,
+            self.dict_file,
+            self.image_file,
+            self.transforms,
+            self.filter_empty_rels,
+            len(indices),
+            self.num_val_im,
+            self.check_img_file,
+            self.filter_duplicate_rels,
+            self.filter_non_overlap,
+            self.flip_aug
+        )
+
+        subset_instance.filenames = subset_filenames
+        subset_instance.gt_boxes = subset_gt_boxes
+        subset_instance.gt_classes = subset_gt_classes
+        subset_instance.gt_attributes = subset_gt_attributes
+        subset_instance.relationships = subset_relationships
+        subset_instance.img_info = subset_img_info
+        subset_instance.idx_list = list(range(len(indices)))
+
+        return subset_instance
 
 def get_VG_statistics(train_data, must_overlap=True):
     """save the initial data distribution for the frequency bias model
@@ -396,10 +434,10 @@ def box_filter(boxes, must_overlap=False):
     n_cands = boxes.shape[0]
 
     overlaps = bbox_overlaps(boxes.astype(
-        np.float), boxes.astype(np.float), to_move=0) > 0
+        np.float64), boxes.astype(np.float64), to_move=0) > 0
     np.fill_diagonal(overlaps, 0)
 
-    all_possib = np.ones_like(overlaps, dtype=np.bool)
+    all_possib = np.ones_like(overlaps, dtype=np.bool_)
     np.fill_diagonal(all_possib, 0)
 
     if must_overlap:
