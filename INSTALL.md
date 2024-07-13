@@ -15,6 +15,10 @@ Most of the requirements of this projects are exactly the same as [maskrcnn-benc
 ### Step-by-step installation
 
 ```bash
+# ------------- INSTALL PYTHON ENVIRONMENT FROM SCRATCH -------------
+# THIS IS ONLY FOR DEBUGGING
+# PLEASE SKIP THIS AND INSTALL FROM FILE
+
 # first, make sure that your conda is setup properly with the right environment
 # for that, check that `which conda`, `which pip` and `which python` points to the
 # right path. From a clean conda env, this is what you need to do
@@ -31,6 +35,11 @@ pip install ninja yacs cython matplotlib tqdm opencv-python overrides gpustat gi
 # follow PyTorch installation in https://pytorch.org/get-started/locally/
 conda install pytorch==1.10.0 torchvision==0.11.0 cudatoolkit=11.3 -c pytorch -c conda-forge
 
+# -------------- INSTALL PYTHON ENVIRONMENT FROM FILE --------------
+# this installs all the necessary python dependencies for SQUAT
+conda env create -f environment.yml
+
+# ------------------- INSTALL OTHER DEPENDENCIES -------------------
 export INSTALL_DIR=$PWD
 
 # install pycocotools
