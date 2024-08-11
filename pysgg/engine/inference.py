@@ -149,6 +149,64 @@ def inference(
     # if output_folder is not None and not load_prediction_from_cache:
     #    torch.save(predictions, os.path.join(output_folder, "predictions.pth"))
 
+    # --------------------------------------------------------------------------------
+    # print('-'*100)
+
+    # import copy
+    # from tqdm import tqdm
+    # import cv2
+    # import numpy as np
+
+    # # Iterate through the dataset and save each image
+    # copy_dataset = copy.deepcopy(dataset)
+    # copy_predictions = copy.deepcopy(predictions)
+    # for i in tqdm(range(len(copy_dataset))):
+    #     img, _, _ = copy_dataset[i]
+
+    #     # print(img.size())
+    #     # print(img)
+
+    #     tensor_img = img
+    #     # tensor_img = tensor_img[[2, 1, 0], :, :]
+
+    #     # print(tensor_img)
+    #     # Find the min and max values
+    #     min_val = torch.min(tensor_img)
+    #     max_val = torch.max(tensor_img)
+
+    #     # Normalize to 0-1
+    #     tensor_img = (tensor_img - min_val) / (max_val - min_val)
+
+    #     # Scale to 0-255
+    #     tensor_img = tensor_img * 255
+
+    #     numpy_image = tensor_img.numpy().astype(np.uint8)
+
+    #     # Convert from [C, H, W] to [H, W, C]
+    #     opencv_image = np.transpose(numpy_image, (1, 2, 0))
+    #     opencv_image = opencv_image.copy()
+    #     print(opencv_image.shape)
+
+    #     # Draw each bounding box
+    #     img_info = copy_dataset.get_img_info(i)
+    #     image_width = img_info["width"]
+    #     image_height = img_info["height"]
+    #     bbox = copy_predictions[i].convert("xyxy").resize((image_width, image_height))
+    #     bbox = bbox.bbox.numpy().astype(np.uint8)
+    #     for box in bbox:
+    #         print(box)
+    #         x1, y1, x2, y2 = box
+    #         cv2.rectangle(opencv_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+    #     cv2.imshow('Image', opencv_image)
+    #     cv2.waitKey(0)
+    #     cv2.destroyAllWindows()
+
+    #     cv2.imwrite(f"demo/output/image_{i}.png", opencv_image)
+
+    # print('-'*100)
+    # --------------------------------------------------------------------------------
+
     extra_args = dict(
         box_only=box_only,
         iou_types=iou_types,

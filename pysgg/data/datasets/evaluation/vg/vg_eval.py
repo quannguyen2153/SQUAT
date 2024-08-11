@@ -18,6 +18,73 @@ from pysgg.data.datasets.visual_genome import HEAD, TAIL, BODY
 eval_times = 0
 
 
+def save_bbox_images(bbox_predictions):
+    import cv2
+    vg_sgg_dicts = json.loads(open("datasets/vg/VG-SGG-dicts-with-attri.json").read())
+    print(vg_sgg_dicts.keys())
+
+    for bbox_pred in bbox_predictions:
+        img = bbox_pred["image"]
+
+        tensor_img = img
+
+        # Find the min and max values
+        min_val = torch.min(tensor_img)
+        max_val = torch.max(tensor_img)
+
+        # Normalize to 0-1
+        tensor_img = (tensor_img - min_val) / (max_val - min_val)
+
+        # Scale to 0-255
+        tensor_img = tensor_img * 255
+
+        numpy_image = tensor_img.numpy().astype(np.uint8)
+
+        # Convert from [C, H, W] to [H, W, C]
+        opencv_image = np.transpose(numpy_image, (1, 2, 0))
+        org_image = opencv_image.copy()
+        opencv_image = opencv_image.copy()
+        # print(opencv_image.shape)
+        image_height, image_width, _ = opencv_image.shape
+
+        # Draw each bounding box
+        bboxes = bbox_pred["box_list"].resize((image_width, image_height)).convert('xyxy').bbox.detach().cpu().numpy()
+        for i, box in enumerate(bboxes):
+            # print(box)
+            label = vg_sgg_dicts["idx_to_label"][str(bbox_pred["labels"][i])]
+            # print(label)
+            x1, y1, x2, y2 = map(int, box)
+            cv2.rectangle(opencv_image, (x1,y1), (x2,y2), (255, 0, 0), 2)
+            cv2.putText(opencv_image, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+        # print(bbox_pred["labels"])
+
+        rel_pairs_ids = bbox_pred["box_list"].extra_fields["rel_pair_idxs"]
+        pred_rel_labels = bbox_pred["box_list"].extra_fields["pred_rel_labels"]
+
+        for i, pair in enumerate(rel_pairs_ids):
+            # obj1 = vg_sgg_dicts["idx_to_label"][str(bbox_pred["labels"][pair[0]])]
+            # obj2 = vg_sgg_dicts["idx_to_label"][str(bbox_pred["labels"][pair[1]])]
+            rel_label = vg_sgg_dicts["idx_to_predicate"][str(pred_rel_labels[i].item())]
+            # print(obj1, obj2, rel_label)
+
+            # Calculate the center points
+            box1 = [int(value) for value in bboxes[pair[0]]]
+            box2 = [int(value) for value in bboxes[pair[1]]]
+            center1 = ((box1[0] + box1[2]) // 2, (box1[1] + box1[3]) // 2)
+            center2 = ((box2[0] + box2[2]) // 2, (box2[1] + box2[3]) // 2)
+
+            cv2.line(opencv_image, center1, center2, (0, 255, 0), 2)
+            mid_point = ((center1[0] + center2[0]) // 2, (center1[1] + center2[1]) // 2)
+            cv2.putText(opencv_image, rel_label, mid_point, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+        cv2.imshow('Image', opencv_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        cv2.imwrite(f"demo/output/org_image_{bbox_pred['id']}.png", org_image)
+        cv2.imwrite(f"demo/output/pred_image_{bbox_pred['id']}.png", opencv_image)
+
+
 def do_vg_evaluation(
         cfg,
         dataset,
@@ -93,10 +160,22 @@ def do_vg_evaluation(
 
         # format predictions to coco-like
         cocolike_predictions = []
+        # bbox_predictions
+        bbox_predictions = []
         for image_id, prediction in enumerate(predictions):
             box = prediction.convert('xywh').bbox.detach().cpu().numpy()  # xywh
             score = prediction.get_field('pred_scores').detach().cpu().numpy()  # (#objs,)
             label = prediction.get_field('pred_labels').detach().cpu().numpy()  # (#objs,)
+
+            import copy
+            bbox_pred = {
+                "id": image_id,
+                "image": dataset[image_id][0].clone(),
+                "box_list": copy.deepcopy(prediction),
+                "labels": label.copy()
+            }
+            bbox_predictions.append(bbox_pred)
+
             # for predcls, we set label and score to groundtruth
             if mode == 'predcls':
                 label = prediction.get_field('labels').detach().cpu().numpy()
@@ -108,6 +187,7 @@ def do_vg_evaluation(
             )
             # logger.info(cocolike_predictions)
         cocolike_predictions = np.concatenate(cocolike_predictions, 0)
+        save_bbox_images(bbox_predictions=bbox_predictions)
 
         # logger.info("Evaluating bbox proposals")
         # areas = {"all": "", "small": "s", "medium": "m", "large": "l"}
@@ -391,6 +471,7 @@ def evaluate_relation_of_one_image(groundtruth, prediction, global_container, ev
 
     local_container = {}
     local_container['gt_rels'] = groundtruth.get_field('relation_tuple').long().detach().cpu().numpy()
+    # print(local_container['gt_rels'])
 
     # if there is no gt relations for current image, then skip it
     if len(local_container['gt_rels']) == 0:
@@ -402,8 +483,10 @@ def evaluate_relation_of_one_image(groundtruth, prediction, global_container, ev
     # about relations
     local_container['pred_rel_inds'] = prediction.get_field(
         'rel_pair_idxs').long().detach().cpu().numpy()  # (#pred_rels, 2)
+    # print(local_container['pred_rel_inds'])
     local_container['rel_scores'] = prediction.get_field(
         'pred_rel_scores').detach().cpu().numpy()  # (#pred_rels, num_pred_class)
+    # print(local_container['rel_scores'])
 
     # about objects
     local_container['pred_boxes'] = prediction.convert('xyxy').bbox.detach().cpu().numpy()  # (#pred_objs, 4)
